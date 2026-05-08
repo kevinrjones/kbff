@@ -1,43 +1,54 @@
 # KBFF - Ktor Backend-for-Frontend Library
 
-KBFF is a Ktor library that simplifies the implementation of the Backend-for-Frontend (BFF) pattern using OpenID Connect (OIDC). It handles authentication, secure session management, and provides a reverse proxy to downstream APIs with automatic token injection and refresh.
+[![Build and Test](https://github.com/kevinrjones/kbff/actions/workflows/build.yml/badge.svg)](https://github.com/kevinrjones/kbff/actions/workflows/build.yml)
+![Kotlin](https://img.shields.io/badge/kotlin-2.3.20-blue.svg?logo=kotlin)
+![Ktor](https://img.shields.io/badge/ktor-3.4.1-blue.svg?logo=ktor)
+![JDK](https://img.shields.io/badge/JDK-21-blue.svg)
 
-## Features
+KBFF is a Ktor library designed to simplify the implementation of the **Backend-for-Frontend (BFF)** pattern using OpenID Connect (OIDC). It manages the complexities of authentication, secure session storage, and request proxying, allowing you to build secure modern web applications.
 
-- **OIDC Integration**: Support for Authorization Code Flow with PKCE.
-- **Secure Session Management**: Server-side sessions with secure cookie attributes (`HttpOnly`, `SameSite`, `Secure`).
-- **Reverse Proxy**: Transparently forward requests to downstream services.
-- **Token Injection**: Automatically injects OIDC Access Tokens into proxied requests.
-- **Token Refresh**: Automatically refreshes expired Access Tokens using Refresh Tokens.
-- **Security Hardening**: Includes recommended security headers (CSP, HSTS, etc.) and CSRF protection.
-- **BFF Management Endpoints**: Built-in routes for login, logout, and user information.
+## Key Features
+
+- **OIDC Integration**: Support for Authorization Code Flow with PKCE (Proof Key for Code Exchange).
+- **Secure Session Management**: Server-side sessions using secure, `HttpOnly`, `SameSite` cookies to mitigate XSS and CSRF.
+- **Reverse Proxy**: Built-in reverse proxy that automatically injects OIDC Access Tokens into requests forwarded to downstream APIs.
+- **Token Lifecycle**: Automatic handling of token expiration and silent refresh using Refresh Tokens.
+- **Security Hardening**: Standard security headers (CSP, HSTS, X-Frame-Options, etc.) and CSRF protection for state-changing requests.
+- **BFF Endpoints**: Pre-configured routes for `login`, `callback`, `logout`, and retrieving authenticated `user` information.
+
+## Prerequisites
+
+- **Java 21** or higher.
+- **Ktor 3.x** or higher.
+- A compatible OpenID Connect (OIDC) Identity Provider (e.g., Keycloak, Auth0, Entra ID).
 
 ## Installation
 
-Add the library to your `build.gradle.kts`:
+Add the GitHub Packages repository and the dependency to your `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.knowledgespike:kbff:1.0.0")
+    implementation("com.knowledgespike:kbff:0.1.0")
 }
 ```
 
 ## Configuration
 
-You can configure KBFF using a DSL:
+Configure the library using the `KbffConfiguration` DSL:
 
 ```kotlin
 val kbffConfig = KbffConfiguration().apply {
     oidc {
-        authority = "https://your-idp.com"
+        authority = "https://your-idp.com/realms/your-realm"
         clientId = "your-client-id"
         clientSecret = "your-client-secret"
         scopes = listOf("openid", "profile", "email", "offline_access")
-        redirectUri = "http://localhost:8080/bff/callback"
+        redirectUri = "http://localhost:8080/signin-oidc"
         postLogoutRedirectUri = "http://localhost:8080/"
     }
     proxy {
-        endpoint("/api/data", "https://downstream-service.com/api/v1")
+        // Map local path to downstream service
+        endpoint("/api", "https://downstream-service.com/api/v1")
     }
     security {
         enableCsrf = true
@@ -48,72 +59,83 @@ val kbffConfig = KbffConfiguration().apply {
 
 ## Usage
 
-Register the library in your Ktor application:
+Integrating KBFF into your Ktor application:
 
 ```kotlin
 fun Application.module() {
-    // 1. Install Koin and provide KbffConfiguration and HttpClient
+    // 1. Dependency Injection (Example using Koin)
     install(Koin) {
         modules(module {
             single { kbffConfig }
-            single { HttpClient(Apache) { install(ContentNegotiation) { json() } } }
+            single { HttpClient(CIO) { install(ContentNegotiation) { json() } } }
             single { OidcService(get(), get()) }
         })
     }
 
-    // 2. Install Sessions
+    val oidcService by inject<OidcService>()
+    val httpClient by inject<HttpClient>()
+
+    // 2. Setup Sessions (Required)
     install(Sessions) {
         cookie<KbffSession>("BFF_SESSION") {
             cookie.path = "/"
             cookie.httpOnly = true
-            cookie.secure = true // Use true in production
+            cookie.secure = true // Recommended for production
             cookie.extensions["SameSite"] = "Lax"
         }
     }
 
-    // 3. Install Security Headers
-    installKbffSecurityHeaders()
+    // 3. Apply Security Headers
+    installKbffSecurityHeaders(kbffConfig)
 
-    // 4. Configure Authentication
+    // 4. Configure Authentication Provider
     install(Authentication) {
         kbffOidc("kbff-auth")
     }
 
-    // 5. Register Routes
+    // 5. Register BFF and Proxy Routes
     routing {
-        kbffAuthRoutes()
-        kbffProxyRoutes()
+        kbffAuthRoutes(oidcService, kbffConfig)
+        kbffProxyRoutes(kbffConfig, httpClient, oidcService)
         
-        // Protected local routes
+        // Protect local routes with the BFF authentication
         authenticate("kbff-auth") {
             get("/protected") {
-                call.respondText("This is protected")
+                call.respondText("This is a protected local route")
             }
         }
     }
 }
 ```
 
-## Security Best Practices
+## Built-in Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/bff/login` | `GET` | Initiates the OIDC login flow. Accepts `returnUrl` parameter. |
+| `/signin-oidc` | `GET` | OIDC callback handler (configured via `redirectUri`). |
+| `/bff/logout` | `POST` | Logs out the user locally and from the IDP. Requires CSRF header. |
+| `/bff/user` | `GET` | Returns the current user's claims as JSON. |
+
+## Security
 
 ### CSRF Protection
-KBFF includes CSRF protection for non-GET requests. By default, it expects a custom header `X-BFF-CSRF` to be present on all `POST`, `PUT`, `DELETE`, etc., requests.
+When enabled, all `POST`, `PUT`, `DELETE`, and `PATCH` requests must include a CSRF header. By default, this header is `X-CSRF`.
 
 ### Security Headers
-`installKbffSecurityHeaders()` helper sets up:
-- **Content Security Policy (CSP)**
-- **HTTP Strict Transport Security (HSTS)**
-- **X-Frame-Options**: Set to `DENY` by default.
-- **X-Content-Type-Options**: Set to `nosniff` by default.
-- **Referrer-Policy**: Set to `strict-origin-when-cross-origin`.
+The `installKbffSecurityHeaders(config)` helper sets up:
+- **HSTS** (if enabled in config)
+- **CSP**: Content-Security-Policy
+- **X-Frame-Options**: `DENY` (configurable)
+- **X-Content-Type-Options**: `nosniff`
+- **Referrer-Policy**: `strict-origin-when-cross-origin`
 
 ## Error Handling
-KBFF returns standardized JSON error responses:
-
+The library returns standardized JSON responses for errors:
 ```json
 {
-  "error": "error_code",
-  "error_description": "A human-readable message"
+  "error": "unauthorized",
+  "error_description": "User is not authenticated"
 }
 ```
 
