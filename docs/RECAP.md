@@ -38,3 +38,16 @@ Recap of the migration to Maven Central (Sonatype):
     - Configured the workflow to use secrets for Sonatype credentials (`OSSRH_USERNAME`, `OSSRH_PASSWORD`) and GPG signing (`MAVEN_GPG_PRIVATE_KEY`, `MAVEN_GPG_PASSPHRASE`).
 - **Documentation**:
     - Updated `README.md` to simplify installation instructions, as the library is now targeted for Maven Central distribution.
+
+### 09:04
+
+Recap of the transition to the `com.vanniktech.maven.publish` plugin:
+
+- **Simplified Publishing Pipeline**:
+    - Migrated from the standard `maven-publish` and `signing` plugins to `com.vanniktech.maven.publish`.
+    - Integrated the `mavenPublishing` DSL in `build.gradle.kts` for more robust and maintainable Sonatype distribution.
+    - Configured automatic POM generation and signing within the new plugin's architecture.
+- **CI/CD Alignment**:
+    - Updated `.github/workflows/build.yml` to use `publishAllPublicationsToMavenCentralRepository`.
+    - Mapped GitHub secrets to the environment variables expected by the Vanniktech plugin (`ORG_GRADLE_PROJECT_mavenCentralUsername`, etc.).
+    - Disabled configuration cache for the publishing task to ensure compatibility with release builds.

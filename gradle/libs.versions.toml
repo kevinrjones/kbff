@@ -13,6 +13,7 @@ nimbus = "10.8"
 serialization = "1.10.0"
 strikt = "0.35.1"
 updateVersion-version = "0.53.0"
+vanniktech-maven-publish = "0.30.0"
 
 [libraries]
 arrow-core = { module = "io.arrow-kt:arrow-core", version.ref = "arrow-version" }
@@ -50,4 +51,5 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ktor-plugin = { id = "io.ktor.plugin", version.ref = "ktor" }
 node-gradle = { id = "com.github.node-gradle.node", version.ref = "nodeGradle" }
+vanniktech-maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktech-maven-publish" }
 versionUpdate = { id = "com.github.ben-manes.versions", version.ref = "updateVersion-version" }

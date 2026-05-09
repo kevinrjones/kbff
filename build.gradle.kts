@@ -1,3 +1,4 @@
+import com.vanniktech.maven.publish.SonatypeHost
 import org.gradle.kotlin.dsl.invoke
 
 plugins {
@@ -5,8 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.gitVersion)
     java
-    `maven-publish`
-    signing
+    alias(libs.plugins.vanniktech.maven.publish)
 }
 
 val gitVersion: groovy.lang.Closure<String> by extra
@@ -76,54 +76,30 @@ java {
     withJavadocJar()
 }
 
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            from(components["java"])
-            pom {
-                name.set("KBFF")
-                description.set("Ktor Backend-for-Frontend Library")
-                url.set("https://github.com/kevinrjones/kbff")
-                licenses {
-                    license {
-                        name.set("The Apache License, Version 2.0")
-                        url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
-                    }
-                }
-                developers {
-                    developer {
-                        id.set("kevinrjones")
-                        name.set("Kevin Jones")
-                        email.set("kevin@knowledgespike.com")
-                    }
-                }
-                scm {
-                    connection.set("scm:git:git://github.com/kevinrjones/kbff.git")
-                    developerConnection.set("scm:git:ssh://github.com/kevinrjones/kbff.git")
-                    url.set("https://github.com/kevinrjones/kbff")
-                }
+mavenPublishing {
+    publishToMavenCentral(SonatypeHost.S01)
+    signAllPublications()
+    pom {
+        name.set("KBFF")
+        description.set("Ktor Backend-for-Frontend Library")
+        url.set("https://github.com/kevinrjones/kbff")
+        licenses {
+            license {
+                name.set("The Apache License, Version 2.0")
+                url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
             }
         }
-    }
-    repositories {
-        maven {
-            name = "OSSRH"
-            val releasesRepoUrl = uri("https://central.sonatype.com/service/local/staging/deploy/maven2/")
-            val snapshotsRepoUrl = uri("https://central.sonatype.com/content/repositories/snapshots/")
-            url = if (version.toString().endsWith("SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl
-            credentials {
-                username = System.getenv("OSSRH_USERNAME")
-                password = System.getenv("OSSRH_PASSWORD")
+        developers {
+            developer {
+                id.set("kevinrjones")
+                name.set("Kevin Jones")
+                email.set("kevin@knowledgespike.com")
             }
         }
-    }
-}
-
-signing {
-    val signingPassword = System.getenv("MAVEN_GPG_PASSPHRASE")
-    val signingKey = System.getenv("MAVEN_GPG_PRIVATE_KEY")
-    if (signingKey != null && signingPassword != null) {
-        useInMemoryPgpKeys(signingKey, signingPassword)
-        sign(publishing.publications["maven"])
+        scm {
+            connection.set("scm:git:git://github.com/kevinrjones/kbff.git")
+            developerConnection.set("scm:git:ssh://github.com/kevinrjones/kbff.git")
+            url.set("https://github.com/kevinrjones/kbff")
+        }
     }
 }
