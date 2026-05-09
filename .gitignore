@@ -130,3 +130,5 @@ gradle-app.setting
 **/.env
 **/.env.*
 !**/.env.example
+/SonatypeUserToken.xml
+/local.properties
