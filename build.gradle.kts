@@ -1,11 +1,32 @@
+import org.gradle.kotlin.dsl.invoke
+
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.gitVersion)
     java
+    `maven-publish`
+    signing
+}
+
+val gitVersion: groovy.lang.Closure<String> by extra
+
+fun getAppVersion(): String {
+    val propVersion = providers.gradleProperty("appVersion").orNull
+    if (propVersion != null) return propVersion
+
+    val envVersion = providers.environmentVariable("ACS_API_APP_VERSION").orNull
+    if (envVersion != null) return envVersion
+
+    return try {
+        gitVersion().replace(".dirty", "")
+    } catch (_: Exception) {
+        "0.0.0-dev"
+    }
 }
 
 group = "com.knowledgespike"
-version = "0.1.0"
+version = getAppVersion()
 
 repositories {
     mavenCentral()
@@ -47,5 +68,62 @@ kotlin {
     jvmToolchain(21)
     compilerOptions {
         freeCompilerArgs.add("-Xcontext-parameters")
+    }
+}
+
+java {
+    withSourcesJar()
+    withJavadocJar()
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["java"])
+            pom {
+                name.set("KBFF")
+                description.set("Ktor Backend-for-Frontend Library")
+                url.set("https://github.com/kevinrjones/kbff")
+                licenses {
+                    license {
+                        name.set("The Apache License, Version 2.0")
+                        url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                    }
+                }
+                developers {
+                    developer {
+                        id.set("kevinrjones")
+                        name.set("Kevin Jones")
+                        email.set("kevin@knowledgespike.com")
+                    }
+                }
+                scm {
+                    connection.set("scm:git:git://github.com/kevinrjones/kbff.git")
+                    developerConnection.set("scm:git:ssh://github.com/kevinrjones/kbff.git")
+                    url.set("https://github.com/kevinrjones/kbff")
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            name = "OSSRH"
+            val releasesRepoUrl = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
+            val snapshotsRepoUrl = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+            url = if (version.toString().endsWith("SNAPSHOT")) snapshotsRepoUrl else releasesRepoUrl
+            credentials {
+                username = System.getenv("OSSRH_USERNAME")
+                password = System.getenv("OSSRH_PASSWORD")
+            }
+        }
+    }
+}
+
+signing {
+    val signingKey = System.getenv("MAVEN_GPG_PRIVATE_KEY")
+    val signingPassword = System.getenv("MAVEN_GPG_PASSPHRASE")
+    if (signingKey != null && signingPassword != null) {
+        useInMemoryPgpKeys(signingKey, signingPassword)
+        sign(publishing.publications["maven"])
     }
 }

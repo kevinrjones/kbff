@@ -24,3 +24,17 @@ Git commits included in this update:
 - `2e40a9f` — Update actions and dependencies in CI workflow to latest versions
 - `ba1d567` — Add artifact upload step to CI workflow
 - `5e6b633` — Remove publish step from CI workflow (subsequently re-enabled and automated)
+
+### 06:28
+
+Recap of the migration to Maven Central (Sonatype):
+
+- **Maven Central Publishing**:
+    - Configured `build.gradle.kts` to publish to Sonatype OSSRH (s01 instance).
+    - Added full POM metadata (name, description, licenses, developers, SCM) as required by Maven Central.
+    - Integrated the `signing` plugin to sign artifacts using GPG before publication.
+- **GitHub Actions Update**:
+    - Replaced the GitHub Packages publishing step with a dedicated Sonatype publishing step.
+    - Configured the workflow to use secrets for Sonatype credentials (`OSSRH_USERNAME`, `OSSRH_PASSWORD`) and GPG signing (`MAVEN_GPG_PRIVATE_KEY`, `MAVEN_GPG_PASSPHRASE`).
+- **Documentation**:
+    - Updated `README.md` to simplify installation instructions, as the library is now targeted for Maven Central distribution.

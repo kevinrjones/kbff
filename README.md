@@ -24,7 +24,7 @@ KBFF is a Ktor library designed to simplify the implementation of the **Backend-
 
 ## Installation
 
-Add the GitHub Packages repository and the dependency to your `build.gradle.kts`:
+Add the dependency to your `build.gradle.kts`:
 
 ```kotlin
 dependencies {
