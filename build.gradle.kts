@@ -71,10 +71,6 @@ kotlin {
     }
 }
 
-java {
-    withSourcesJar()
-    withJavadocJar()
-}
 
 mavenPublishing {
     publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
