@@ -3,16 +3,16 @@ arrow-version = "2.2.2.1"
 catalogUpdateVersion-version = "1.1.0"
 gitVersion-version = "5.0.0"
 junit = "6.0.3"
-koin = "4.2.0"
-kotlin = "2.3.20"
-ktor = "3.4.1"
+koin = "4.2.1"
+kotlin = "2.3.21"
+ktor = "3.4.3"
 logback = "1.5.32"
 mockk = "1.14.9"
+nimbus = "10.9"
 nodeGradle = "7.1.0"
-nimbus = "10.8"
-serialization = "1.10.0"
+serialization = "1.11.0"
 strikt = "0.35.1"
-updateVersion-version = "0.53.0"
+updateVersion-version = "0.54.0"
 vanniktech-maven-publish = "0.30.0"
 
 [libraries]
@@ -41,7 +41,7 @@ ktor-server-test-host = { module = "io.ktor:ktor-server-test-host-jvm", version.
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 nimbus-jose-jwt = { module = "com.nimbusds:nimbus-jose-jwt", version.ref = "nimbus" }
-nimbus-oauth2-oidc-sdk = "com.nimbusds:oauth2-oidc-sdk:11.34"
+nimbus-oauth2-oidc-sdk = "com.nimbusds:oauth2-oidc-sdk:11.37.1"
 strikt-core = { module = "io.strikt:strikt-core", version.ref = "strikt" }
 
 [plugins]
