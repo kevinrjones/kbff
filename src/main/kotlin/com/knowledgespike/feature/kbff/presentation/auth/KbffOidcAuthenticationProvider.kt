@@ -265,28 +265,12 @@ class KbffOidcAuthenticationProvider internal constructor(config: Config) : Auth
         }
 
         /**
-         * Constructs the full URL of the current request based on the scheme, host, and port
-         * observed in the request's local data or HTTP headers, and appends the request URI.
+         * Constructs a relative URL for the current request, preserving path and query.
          *
-         * This supports adjustments for non-default ports and handles parsing of the
-         * `Host` header to extract host and port information when available.
-         *
-         * @return The fully qualified URL of the current request.
+         * @return The relative URL of the current request.
          */
         private fun ApplicationCall.buildCurrentRequestUrl(): String {
-            val local = request.local
-            val scheme = local.scheme
-            val hostHeader = request.headers[HttpHeaders.Host]
-            val hostAndPort = parseHostAndPort(hostHeader)
-            val host = hostAndPort.first ?: local.serverHost
-            val port = hostAndPort.second ?: local.serverPort
-            val defaultPort = if (scheme.equals("https", ignoreCase = true)) 443 else 80
-            val authority = if (port == defaultPort) {
-                "$scheme://$host"
-            } else {
-                "$scheme://$host:$port"
-            }
-            return authority + request.uri
+            return request.uri
         }
 
         /**

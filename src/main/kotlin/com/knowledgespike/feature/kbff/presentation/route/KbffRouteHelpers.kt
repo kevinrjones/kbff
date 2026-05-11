@@ -39,9 +39,41 @@ internal fun normalizeReturnUrl(
     callbackPath: String,
     scheme: String = "http"
 ): String {
-    val fallback = UriUtils.buildAuthorityUrl(scheme, host, port)
-    val candidate = returnUrl ?: fallback
-    return if (isCallbackUrl(candidate, callbackPath)) fallback else candidate
+    val fallback = "/"
+    val candidate = returnUrl?.trim().orEmpty()
+    if (candidate.isEmpty()) {
+        return fallback
+    }
+
+    if (!isAllowedRelativeReturnUrl(candidate)) {
+        return fallback
+    }
+
+    val uri = runCatching { URI(candidate) }.getOrNull() ?: return fallback
+    if (isCallbackUrl(uri.path.orEmpty(), callbackPath)) {
+        return fallback
+    }
+
+    return URI(null, null, uri.path, uri.query, null).toString()
+}
+
+internal fun isUnsafeReturnUrl(returnUrl: String?, callbackPath: String): Boolean {
+    val sanitized = normalizeReturnUrl(returnUrl, "localhost", 80, callbackPath)
+    val raw = returnUrl?.trim().orEmpty()
+    return raw.isNotEmpty() && sanitized == "/" && raw != "/"
+}
+
+private fun isAllowedRelativeReturnUrl(returnUrl: String): Boolean {
+    if (!returnUrl.startsWith("/") || returnUrl.startsWith("//")) {
+        return false
+    }
+
+    val uri = runCatching { URI(returnUrl) }.getOrNull() ?: return false
+    if (uri.scheme != null || uri.authority != null) {
+        return false
+    }
+
+    return true
 }
 
 

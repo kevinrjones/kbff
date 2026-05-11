@@ -32,42 +32,55 @@ import strikt.assertions.isNotNull
 class KbffAuthRoutesTest {
 
     @Test
-    fun `normalizeReturnUrl omits standard http port`() {
+    fun `normalizeReturnUrl keeps safe relative path`() {
         val result = normalizeReturnUrl(
-            returnUrl = null,
+            returnUrl = "/dashboard?tab=claims#section1",
             host = "localhost",
             port = 80,
             callbackPath = "/signin-oidc",
             scheme = "http"
         )
 
-        expectThat(result).isEqualTo("http://localhost/")
+        expectThat(result).isEqualTo("/dashboard?tab=claims")
     }
 
     @Test
-    fun `normalizeReturnUrl omits standard https port`() {
+    fun `normalizeReturnUrl rejects absolute external url`() {
         val result = normalizeReturnUrl(
-            returnUrl = null,
-            host = "example.com",
+            returnUrl = "https://evil.example/phish",
+            host = "localhost",
             port = 443,
             callbackPath = "/signin-oidc",
             scheme = "https"
         )
 
-        expectThat(result).isEqualTo("https://example.com/")
+        expectThat(result).isEqualTo("/")
     }
 
     @Test
-    fun `normalizeReturnUrl includes non-standard port`() {
+    fun `normalizeReturnUrl rejects callback path`() {
         val result = normalizeReturnUrl(
-            returnUrl = null,
+            returnUrl = "/signin-oidc",
             host = "localhost",
             port = 8888,
             callbackPath = "/signin-oidc",
             scheme = "http"
         )
 
-        expectThat(result).isEqualTo("http://localhost:8888/")
+        expectThat(result).isEqualTo("/")
+    }
+
+    @Test
+    fun `normalizeReturnUrl rejects protocol relative url`() {
+        val result = normalizeReturnUrl(
+            returnUrl = "//evil.example/path",
+            host = "localhost",
+            port = 8888,
+            callbackPath = "/signin-oidc",
+            scheme = "http"
+        )
+
+        expectThat(result).isEqualTo("/")
     }
 
     @Test
@@ -111,6 +124,7 @@ class KbffAuthRoutesTest {
     @Test
     fun `test callback success`() = testApplication {
         val oidcService = mockk<OidcService>()
+        every { oidcService.generateState() } returns "new-csrf-token"
         val initialSession = KbffSession(
             sessionId = "sid123",
             state = "state123",
@@ -157,11 +171,12 @@ class KbffAuthRoutesTest {
     @Test
     fun `test callback success should not redirect back to callback path`() = testApplication {
         val oidcService = mockk<OidcService>()
+        every { oidcService.generateState() } returns "new-csrf-token"
         val initialSession = KbffSession(
             sessionId = "sid123",
             state = "state123",
             codeVerifier = "verifier789",
-            returnUrl = "http://localhost:8888/signin-oidc"
+            returnUrl = "/signin-oidc"
         )
         val updatedSession = initialSession.copy(accessToken = "access-token", idToken = "id-token")
 
@@ -194,11 +209,57 @@ class KbffAuthRoutesTest {
 
         val response = createClient { followRedirects = false }.get("/signin-oidc?code=code123&state=state123") {
             header(HttpHeaders.Cookie, "KBFF_SESSION=mock-session")
-            header(HttpHeaders.Host, "localhost:8888")
         }
 
         expectThat(response.status).isEqualTo(HttpStatusCode.Found)
-        expectThat(response.headers[HttpHeaders.Location]).isEqualTo("http://localhost:8888/")
+        expectThat(response.headers[HttpHeaders.Location]).isEqualTo("/")
+    }
+
+    @Test
+    fun `test callback success should redirect to fallback for unsafe external return url`() = testApplication {
+        val oidcService = mockk<OidcService>()
+        every { oidcService.generateState() } returns "new-csrf-token"
+        val initialSession = KbffSession(
+            sessionId = "sid123",
+            state = "state123",
+            codeVerifier = "verifier789",
+            returnUrl = "https://evil.example/phish"
+        )
+        val updatedSession = initialSession.copy(accessToken = "access-token", idToken = "id-token")
+
+        coEvery { oidcService.exchangeCodeForTokens("code123", "verifier789", any()) } returns updatedSession.right()
+        coEvery { oidcService.getUserInfoClaims("access-token") } returns emptyList<KbffClaim>().right()
+
+        application {
+            install(ContentNegotiation) {
+                json()
+            }
+            val config = KbffConfiguration()
+            install(Koin) {
+                modules(module {
+                    single { oidcService }
+                    single { config }
+                })
+            }
+            install(Sessions) {
+                cookie<KbffSession>("KBFF_SESSION") {
+                    serializer = object : SessionSerializer<KbffSession> {
+                        override fun deserialize(text: String): KbffSession = initialSession
+                        override fun serialize(session: KbffSession): String = "mock-session"
+                    }
+                }
+            }
+            routing {
+                kbffAuthRoutes(oidcService, config)
+            }
+        }
+
+        val response = createClient { followRedirects = false }.get("/signin-oidc?code=code123&state=state123") {
+            header(HttpHeaders.Cookie, "KBFF_SESSION=mock-session")
+        }
+
+        expectThat(response.status).isEqualTo(HttpStatusCode.Found)
+        expectThat(response.headers[HttpHeaders.Location]).isEqualTo("/")
     }
 
     @Test
@@ -207,6 +268,7 @@ class KbffAuthRoutesTest {
         val session = KbffSession(
             sessionId = "sid123",
             accessToken = "at",
+            csrfToken = "test-csrf-token",
             claims = listOf(
                 KbffClaim("name", "John Doe"),
                 KbffClaim("email", "john@example.com"),
@@ -257,17 +319,20 @@ class KbffAuthRoutesTest {
         }
 
         expectThat(response.status).isEqualTo(HttpStatusCode.OK)
-        val body = response.body<JsonArray>()
-        expectThat(body).hasSize(4) // name, email, role (user), role (admin)
+        val body = response.body<kotlinx.serialization.json.JsonObject>()
+        val claims = body["claims"] as JsonArray
+        expectThat(claims).hasSize(4) // name, email, role (user), role (admin)
 
-        val nameClaims = body.filter { it.jsonObject["type"]?.jsonPrimitive?.content == "name" }
+        val nameClaims = claims.filter { it.jsonObject["type"]?.jsonPrimitive?.content == "name" }
         expectThat(nameClaims).hasSize(1)
         expectThat(nameClaims[0].jsonObject["value"]?.jsonPrimitive?.content).isEqualTo("John Doe")
 
-        val roleClaims = body.filter { it.jsonObject["type"]?.jsonPrimitive?.content == "role" }
+        val roleClaims = claims.filter { it.jsonObject["type"]?.jsonPrimitive?.content == "role" }
         expectThat(roleClaims).hasSize(2)
         val roleValues = roleClaims.map { it.jsonObject["value"]?.jsonPrimitive?.content }.toSet()
         expectThat(roleValues).contains("user", "admin")
+
+        expectThat(body["csrfToken"]?.jsonPrimitive?.content).isEqualTo(session.csrfToken)
     }
 
     @Test
@@ -286,10 +351,11 @@ class KbffAuthRoutesTest {
                     single { config }
                 })
             }
+            val session = KbffSession("sid", csrfToken = "csrf-token")
             install(Sessions) {
                 cookie<KbffSession>("KBFF_SESSION") {
                    serializer = object : SessionSerializer<KbffSession> {
-                        override fun deserialize(text: String): KbffSession = KbffSession("sid")
+                        override fun deserialize(text: String): KbffSession = session
                         override fun serialize(session: KbffSession): String = "mock-session"
                     }
                 }

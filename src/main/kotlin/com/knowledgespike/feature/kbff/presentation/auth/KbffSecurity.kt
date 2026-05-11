@@ -62,14 +62,13 @@ fun ApplicationCall.verifyCsrfToken(configuration: KbffConfiguration): Boolean {
 
     val csrfHeader = request.headers[security.csrfHeaderName]
     val session = sessions.get<KbffSession>()
-    logger.debug("Getting  session: {}", session)
+    val sessionCsrf = session?.csrfToken
 
-    // just need the header I don't care what the value is
-    if (csrfHeader.isNullOrBlank()) {
+    if (csrfHeader.isNullOrBlank() || sessionCsrf.isNullOrBlank() || csrfHeader != sessionCsrf) {
         logger.warn(
-            "CSRF verification failed: Missing header '{}', sessionCsrf: '{}'",
-            security.csrfHeaderName,
-            csrfHeader
+            "CSRF verification failed: header='{}', session='{}'",
+            csrfHeader,
+            sessionCsrf
         )
         return false
     }

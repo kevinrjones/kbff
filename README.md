@@ -144,3 +144,9 @@ Common error codes:
 - `forbidden`: CSRF check failed.
 - `invalid_request`: Missing or invalid parameters.
 - `authentication_failed`: OIDC token exchange failed.
+
+
+## Deployment
+
+ - Look [here](https://central.sonatype.com/publishing/deployments) for deployments, and the **publish** 
+ - [here](https://central.sonatype.com/artifact/com.knowledgespike/kbff) for artifacts

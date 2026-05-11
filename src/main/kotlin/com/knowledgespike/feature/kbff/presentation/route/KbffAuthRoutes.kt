@@ -28,16 +28,12 @@ fun Route.kbffAuthRoutes(
 
     route(loginPath) {
         get {
-            logger.debug(
-                "Handling login request, returnUrl: {}, host: {}, port: {}, callbackPath: {}, scheme: {}",
-                call.parameters["returnUrl"],
-                call.request.host(),
-                call.request.port(),
-                callbackPath,
-                call.request.origin.scheme
-            )
+            val requestedReturnUrl = call.parameters["returnUrl"]
+            if (isUnsafeReturnUrl(requestedReturnUrl, callbackPath)) {
+                logger.warn("Rejected unsafe returnUrl during login")
+            }
             val returnUrl = normalizeReturnUrl(
-                returnUrl = call.parameters["returnUrl"],
+                returnUrl = requestedReturnUrl,
                 host = call.request.host(),
                 port = call.request.port(),
                 callbackPath = callbackPath,
@@ -54,7 +50,8 @@ fun Route.kbffAuthRoutes(
                 state = state,
                 nonce = nonce,
                 codeVerifier = codeVerifier,
-                returnUrl = returnUrl
+                returnUrl = returnUrl,
+                csrfToken = oidcService.generateState()
             )
             logger.debug("Setting initial session: {}", initialSession)
             call.sessions.set(initialSession)
@@ -115,9 +112,9 @@ fun Route.kbffAuthRoutes(
 
             val finalSession = if (updatedSession.accessToken != null) {
                 val userInfoClaims = oidcService.getUserInfoClaims(updatedSession.accessToken).getOrElse { emptyList() }
-                updatedSession.copy(userInfoClaims = userInfoClaims)
+                updatedSession.copy(userInfoClaims = userInfoClaims, csrfToken = oidcService.generateState())
             } else {
-                updatedSession
+                updatedSession.copy(csrfToken = oidcService.generateState())
             }
 
             val redirectUrl = normalizeReturnUrl(
@@ -166,14 +163,17 @@ fun Route.kbffAuthRoutes(
 
             val mergedClaims = (session.claims + session.userInfoClaims).distinctBy { it.type to it.value }
 
-            val claimsArray = kotlinx.serialization.json.buildJsonArray {
-                mergedClaims.forEach { claim ->
-                    add(buildJsonObject {
-                        put("type", claim.type)
-                        put("value", claim.value)
-                        put("valueType", claim.valueType)
-                    })
-                }
+            val claimsArray = kotlinx.serialization.json.buildJsonObject {
+                put("claims", kotlinx.serialization.json.buildJsonArray {
+                    mergedClaims.forEach { claim ->
+                        add(buildJsonObject {
+                            put("type", claim.type)
+                            put("value", claim.value)
+                            put("valueType", claim.valueType)
+                        })
+                    }
+                })
+                put("csrfToken", session.csrfToken)
             }
             call.respond(claimsArray)
         }

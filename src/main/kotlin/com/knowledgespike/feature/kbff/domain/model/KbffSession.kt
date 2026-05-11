@@ -20,6 +20,7 @@ data class KbffSession(
     val state: String? = null,
     val nonce: String? = null,
     val returnUrl: String? = null,
+    val csrfToken: String? = null,
     val claims: List<KbffClaim> = emptyList(),
     val userInfoClaims: List<KbffClaim> = emptyList()
 )

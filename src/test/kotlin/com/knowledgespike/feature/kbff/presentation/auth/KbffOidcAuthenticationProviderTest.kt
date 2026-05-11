@@ -111,7 +111,7 @@ class KbffOidcAuthenticationProviderTest {
         assertEquals(HttpStatusCode.Found, response.status)
         val location = response.headers[HttpHeaders.Location]
         assertTrue(location != null)
-        assertTrue(location.contains("returnUrl=http%3A%2F%2Flocalhost%3A44410%2Fuser"))
+        assertTrue(location.contains("returnUrl=%2Fuser"))
     }
 
     @Test
@@ -144,7 +144,7 @@ class KbffOidcAuthenticationProviderTest {
         assertEquals(HttpStatusCode.Found, response.status)
         val location = response.headers[HttpHeaders.Location]
         assertEquals(
-            "http://localhost:44410/bff/login?returnUrl=http%3A%2F%2Flocalhost%3A44410%2Fuser",
+            "http://localhost:44410/bff/login?returnUrl=%2Fuser",
             location
         )
     }
@@ -179,7 +179,7 @@ class KbffOidcAuthenticationProviderTest {
         assertEquals(HttpStatusCode.Found, response.status)
         val location = response.headers[HttpHeaders.Location]
         assertEquals(
-            "http://localhost:44410/bff/login?returnUrl=http%3A%2F%2Flocalhost%3A44410%2Fuser",
+            "http://localhost:44410/bff/login?returnUrl=%2Fuser",
             location
         )
     }
