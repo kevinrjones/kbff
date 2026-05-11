@@ -137,10 +137,7 @@ class KbffOidcAuthenticationProvider internal constructor(config: Config) : Auth
             val returnUrl = buildCurrentRequestUrl()
             val safeReturnUrl = normalizeReturnUrl(
                 returnUrl = returnUrl,
-                host = request.host(),
-                port = request.port(),
-                callbackPath = callbackPath,
-                scheme = request.origin.scheme
+                callbackPath = callbackPath
             )
             val redirectPath = URLBuilder(resolveLoginPath()).apply {
                 parameters.append(returnUrlParameterName, safeReturnUrl)

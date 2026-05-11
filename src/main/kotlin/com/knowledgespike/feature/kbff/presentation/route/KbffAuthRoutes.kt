@@ -6,12 +6,11 @@ import com.knowledgespike.feature.kbff.domain.model.KbffErrorResponse
 import com.knowledgespike.feature.kbff.domain.model.KbffSession
 import com.knowledgespike.feature.kbff.domain.service.OidcService
 import com.knowledgespike.feature.kbff.presentation.auth.verifyCsrfToken
-import io.ktor.server.request.*
 import io.ktor.http.*
-import io.ktor.server.plugins.origin
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.sessions.*
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.slf4j.LoggerFactory
@@ -34,10 +33,7 @@ fun Route.kbffAuthRoutes(
             }
             val returnUrl = normalizeReturnUrl(
                 returnUrl = requestedReturnUrl,
-                host = call.request.host(),
-                port = call.request.port(),
-                callbackPath = callbackPath,
-                scheme = call.request.origin.scheme
+                callbackPath = callbackPath
             )
             logger.debug("Handling login request, returnUrl: {}", returnUrl)
             val state = oidcService.generateState()
@@ -118,10 +114,7 @@ fun Route.kbffAuthRoutes(
 
             val redirectUrl = normalizeReturnUrl(
                 returnUrl = session.returnUrl,
-                host = call.request.host(),
-                port = call.request.port(),
-                callbackPath = callbackPath,
-                scheme = call.request.origin.scheme
+                callbackPath = callbackPath
             )
             logger.info("Successfully authenticated user, redirecting to: {}", redirectUrl)
             call.sessions.set(finalSession)
@@ -162,8 +155,8 @@ fun Route.kbffAuthRoutes(
 
             val mergedClaims = (session.claims + session.userInfoClaims).distinctBy { it.type to it.value }
 
-            val claimsArray = kotlinx.serialization.json.buildJsonObject {
-                put("claims", kotlinx.serialization.json.buildJsonArray {
+            val claimsArray = buildJsonObject {
+                put("claims", buildJsonArray {
                     mergedClaims.forEach { claim ->
                         add(buildJsonObject {
                             put("type", claim.type)

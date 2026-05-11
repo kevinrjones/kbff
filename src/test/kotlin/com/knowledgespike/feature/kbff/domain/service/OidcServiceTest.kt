@@ -365,4 +365,49 @@ class OidcServiceTest {
         expectThat(claims.find { it.type == "family_name" }?.value).isEqualTo("Doe")
         expectThat(claims.filter { it.type == "roles" }).hasSize(2)
     }
+
+    @Test
+    fun `test sslTrustAll in production should fail`() {
+        val client = HttpClient(MockEngine { respondOk() })
+        val config = KbffConfiguration().apply {
+            oidc {
+                sslTrustAll = true
+            }
+            environment(isProduction = true)
+        }
+
+        expectThat(kotlin.runCatching { OidcService(client, config) }.exceptionOrNull())
+            .isNotNull()
+            .isA<IllegalStateException>()
+            .get { message }
+            .isEqualTo("Security breach: sslTrustAll=true is strictly prohibited in production mode.")
+    }
+
+    @Test
+    fun `test sslTrustAll in development should pass`() {
+        val client = HttpClient(MockEngine { respondOk() })
+        val config = KbffConfiguration().apply {
+            oidc {
+                sslTrustAll = true
+            }
+            environment(isProduction = false)
+        }
+
+        // Should not throw
+        OidcService(client, config)
+    }
+
+    @Test
+    fun `test production with sslTrustAll false should pass`() {
+        val client = HttpClient(MockEngine { respondOk() })
+        val config = KbffConfiguration().apply {
+            oidc {
+                sslTrustAll = false
+            }
+            environment(isProduction = true)
+        }
+
+        // Should not throw
+        OidcService(client, config)
+    }
 }

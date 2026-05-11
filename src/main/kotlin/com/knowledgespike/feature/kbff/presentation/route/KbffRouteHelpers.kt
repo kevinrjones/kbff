@@ -1,19 +1,10 @@
 package com.knowledgespike.feature.kbff.presentation.route
 
-import com.knowledgespike.feature.kbff.domain.model.InvalidTokenResponseError
-import com.knowledgespike.feature.kbff.domain.model.KbffErrorResponse
-import com.knowledgespike.feature.kbff.domain.model.KbffSession
-import com.knowledgespike.feature.kbff.domain.model.MetadataUnavailableError
-import com.knowledgespike.feature.kbff.domain.model.NetworkError
-import com.knowledgespike.feature.kbff.domain.model.OidcFlowError
-import com.knowledgespike.feature.kbff.domain.model.ParseValidationError
-import com.knowledgespike.feature.kbff.domain.model.ValidationError
-import com.knowledgespike.feature.kbff.domain.util.UriUtils
-import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.ApplicationCall
-import io.ktor.server.response.respond
-import io.ktor.server.sessions.get
-import io.ktor.server.sessions.sessions
+import com.knowledgespike.feature.kbff.domain.model.*
+import io.ktor.http.*
+import io.ktor.server.application.*
+import io.ktor.server.response.*
+import io.ktor.server.sessions.*
 import java.net.URI
 
 /**
@@ -34,10 +25,7 @@ import java.net.URI
  */
 internal fun normalizeReturnUrl(
     returnUrl: String?,
-    host: String,
-    port: Int,
-    callbackPath: String,
-    scheme: String = "http"
+    callbackPath: String
 ): String {
     val fallback = "/"
     val candidate = returnUrl?.trim().orEmpty()
@@ -58,7 +46,7 @@ internal fun normalizeReturnUrl(
 }
 
 internal fun isUnsafeReturnUrl(returnUrl: String?, callbackPath: String): Boolean {
-    val sanitized = normalizeReturnUrl(returnUrl, "localhost", 80, callbackPath)
+    val sanitized = normalizeReturnUrl(returnUrl, callbackPath)
     val raw = returnUrl?.trim().orEmpty()
     return raw.isNotEmpty() && sanitized == "/" && raw != "/"
 }

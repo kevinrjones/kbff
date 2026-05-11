@@ -35,10 +35,7 @@ class KbffAuthRoutesTest {
     fun `normalizeReturnUrl keeps safe relative path`() {
         val result = normalizeReturnUrl(
             returnUrl = "/dashboard?tab=claims#section1",
-            host = "localhost",
-            port = 80,
-            callbackPath = "/signin-oidc",
-            scheme = "http"
+            callbackPath = "/signin-oidc"
         )
 
         expectThat(result).isEqualTo("/dashboard?tab=claims")
@@ -48,10 +45,7 @@ class KbffAuthRoutesTest {
     fun `normalizeReturnUrl rejects absolute external url`() {
         val result = normalizeReturnUrl(
             returnUrl = "https://evil.example/phish",
-            host = "localhost",
-            port = 443,
-            callbackPath = "/signin-oidc",
-            scheme = "https"
+            callbackPath = "/signin-oidc"
         )
 
         expectThat(result).isEqualTo("/")
@@ -61,10 +55,7 @@ class KbffAuthRoutesTest {
     fun `normalizeReturnUrl rejects callback path`() {
         val result = normalizeReturnUrl(
             returnUrl = "/signin-oidc",
-            host = "localhost",
-            port = 8888,
-            callbackPath = "/signin-oidc",
-            scheme = "http"
+            callbackPath = "/signin-oidc"
         )
 
         expectThat(result).isEqualTo("/")
@@ -74,10 +65,7 @@ class KbffAuthRoutesTest {
     fun `normalizeReturnUrl rejects protocol relative url`() {
         val result = normalizeReturnUrl(
             returnUrl = "//evil.example/path",
-            host = "localhost",
-            port = 8888,
-            callbackPath = "/signin-oidc",
-            scheme = "http"
+            callbackPath = "/signin-oidc"
         )
 
         expectThat(result).isEqualTo("/")
