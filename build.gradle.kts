@@ -1,5 +1,4 @@
 import com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask
-import com.vanniktech.maven.publish.SonatypeHost
 import org.gradle.kotlin.dsl.invoke
 
 plugins {
@@ -76,7 +75,8 @@ kotlin {
 
 
 mavenPublishing {
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL)
+    publishToMavenCentral()
+//    publishToMavenCentral(automaticRelease = true)
     signAllPublications()
     pom {
         name.set("KBFF")
@@ -85,7 +85,7 @@ mavenPublishing {
         licenses {
             license {
                 name.set("The Apache License, Version 2.0")
-                url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
             }
         }
         developers {
