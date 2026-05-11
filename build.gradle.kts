@@ -14,17 +14,15 @@ plugins {
 val gitVersion: groovy.lang.Closure<String> by extra
 
 fun getAppVersion(): String {
-    val propVersion = providers.gradleProperty("appVersion").orNull
-    if (propVersion != null) return propVersion
+    val rawVersion = providers.gradleProperty("appVersion").orNull
+        ?: providers.environmentVariable("ACS_API_APP_VERSION").orNull
+        ?: try {
+            gitVersion().replace(".dirty", "")
+        } catch (_: Exception) {
+            "0.0.0-dev"
+        }
 
-    val envVersion = providers.environmentVariable("ACS_API_APP_VERSION").orNull
-    if (envVersion != null) return envVersion
-
-    return try {
-        gitVersion().replace(".dirty", "")
-    } catch (_: Exception) {
-        "0.0.0-dev"
-    }
+    return rawVersion.removePrefix("v")
 }
 
 group = "com.knowledgespike"
