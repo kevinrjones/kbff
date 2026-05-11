@@ -185,7 +185,8 @@ class OidcService(
         val idToken = json["id_token"]?.jsonPrimitive?.contentOrNull
         val refreshToken = json["refresh_token"]?.jsonPrimitive?.contentOrNull
 
-        logger.info(
+        logger.info("Successfully retrieved tokens from identity server during {}", flow)
+        logger.debug(
             "Tokens retrieved from identity server during {}. access_token={}, id_token={}, refresh_token={}",
             flow,
             maskToken(accessToken),

@@ -53,7 +53,6 @@ fun Route.kbffAuthRoutes(
                 returnUrl = returnUrl,
                 csrfToken = oidcService.generateState()
             )
-            logger.debug("Setting initial session: {}", initialSession)
             call.sessions.set(initialSession)
 
             val authUrl =

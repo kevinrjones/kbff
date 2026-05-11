@@ -66,9 +66,10 @@ fun ApplicationCall.verifyCsrfToken(configuration: KbffConfiguration): Boolean {
 
     if (csrfHeader.isNullOrBlank() || sessionCsrf.isNullOrBlank() || csrfHeader != sessionCsrf) {
         logger.warn(
-            "CSRF verification failed: header='{}', session='{}'",
-            csrfHeader,
-            sessionCsrf
+            "CSRF verification failed: header present: {}, session token present: {}, match: {}",
+            !csrfHeader.isNullOrBlank(),
+            !sessionCsrf.isNullOrBlank(),
+            csrfHeader != null && csrfHeader == sessionCsrf
         )
         return false
     }

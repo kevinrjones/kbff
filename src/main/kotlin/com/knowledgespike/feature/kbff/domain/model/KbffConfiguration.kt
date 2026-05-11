@@ -18,7 +18,11 @@ data class OidcConfiguration(
     val sslCertificatePath: String? = null,
     val connectTimeoutMillis: Long = 5000L,
     val socketTimeoutMillis: Long = 5000L
-)
+) {
+    override fun toString(): String {
+        return "OidcConfiguration(authority='$authority', discoveryUrl='$discoveryUrl', clientId='$clientId', clientSecret='****', scopes=$scopes, redirectUri='$redirectUri', postLogoutRedirectUri='$postLogoutRedirectUri', sslTrustAll=$sslTrustAll, sslCertificatePath=$sslCertificatePath, connectTimeoutMillis=$connectTimeoutMillis, socketTimeoutMillis=$socketTimeoutMillis)"
+    }
+}
 
 @Serializable
 data class SecurityConfiguration(
