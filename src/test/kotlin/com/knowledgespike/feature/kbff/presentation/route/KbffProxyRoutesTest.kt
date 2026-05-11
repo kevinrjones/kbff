@@ -26,6 +26,170 @@ import strikt.assertions.isNotNull
 class KbffProxyRoutesTest {
 
     @Test
+    fun `test proxy fails when csrf enabled but header missing`() = testApplication {
+        val oidcService = mockk<OidcService>()
+        val config = KbffConfiguration().apply {
+            proxy {
+                endpoint("/api/player", "http://localhost:8080/api/player")
+            }
+            security {
+                enableCsrf = true
+                csrfHeaderName = "X-CSRF"
+            }
+        }
+        val httpClient = HttpClient(MockEngine { respondOk() })
+
+        val session = KbffSession(
+            sessionId = "sid",
+            accessToken = "at",
+            csrfToken = "correct-token",
+            expiresAt = System.currentTimeMillis() + 100000
+        )
+
+        application {
+            install(io.ktor.server.plugins.contentnegotiation.ContentNegotiation) {
+                json()
+            }
+            install(Koin) {
+                modules(module {
+                    single { oidcService }
+                    single { config }
+                    single { httpClient }
+                })
+            }
+            install(Sessions) {
+                cookie<KbffSession>("KBFF_SESSION") {
+                    serializer = object : SessionSerializer<KbffSession> {
+                        override fun deserialize(text: String): KbffSession = session
+                        override fun serialize(session: KbffSession): String = "mock-session"
+                    }
+                }
+            }
+            routing {
+                kbffProxyRoutes(config, httpClient, oidcService)
+            }
+        }
+
+        val response = client.post("/api/player/do-something") {
+            header(HttpHeaders.Cookie, "KBFF_SESSION=mock-session")
+            // No CSRF header
+        }
+
+        expectThat(response.status).isEqualTo(HttpStatusCode.Forbidden)
+    }
+
+    @Test
+    fun `test proxy fails when csrf enabled but header mismatched`() = testApplication {
+        val oidcService = mockk<OidcService>()
+        val config = KbffConfiguration().apply {
+            proxy {
+                endpoint("/api/player", "http://localhost:8080/api/player")
+            }
+            security {
+                enableCsrf = true
+                csrfHeaderName = "X-CSRF"
+            }
+        }
+        val httpClient = HttpClient(MockEngine { respondOk() })
+
+        val session = KbffSession(
+            sessionId = "sid",
+            accessToken = "at",
+            csrfToken = "correct-token",
+            expiresAt = System.currentTimeMillis() + 100000
+        )
+
+        application {
+            install(io.ktor.server.plugins.contentnegotiation.ContentNegotiation) {
+                json()
+            }
+            install(Koin) {
+                modules(module {
+                    single { oidcService }
+                    single { config }
+                    single { httpClient }
+                })
+            }
+            install(Sessions) {
+                cookie<KbffSession>("KBFF_SESSION") {
+                    serializer = object : SessionSerializer<KbffSession> {
+                        override fun deserialize(text: String): KbffSession = session
+                        override fun serialize(session: KbffSession): String = "mock-session"
+                    }
+                }
+            }
+            routing {
+                kbffProxyRoutes(config, httpClient, oidcService)
+            }
+        }
+
+        val response = client.post("/api/player/do-something") {
+            header(HttpHeaders.Cookie, "KBFF_SESSION=mock-session")
+            header("X-CSRF", "wrong-token")
+        }
+
+        expectThat(response.status).isEqualTo(HttpStatusCode.Forbidden)
+    }
+
+    @Test
+    fun `test proxy succeeds when csrf enabled and header matches`() = testApplication {
+        val oidcService = mockk<OidcService>()
+        val config = KbffConfiguration().apply {
+            proxy {
+                endpoint("/api/player", "http://localhost:8080/api/player")
+            }
+            security {
+                enableCsrf = true
+                csrfHeaderName = "X-CSRF"
+            }
+        }
+        val httpClient = HttpClient(MockEngine {
+            respond(
+                content = "ok",
+                status = HttpStatusCode.OK
+            )
+        })
+
+        val session = KbffSession(
+            sessionId = "sid",
+            accessToken = "at",
+            csrfToken = "correct-token",
+            expiresAt = System.currentTimeMillis() + 100000
+        )
+
+        application {
+            install(io.ktor.server.plugins.contentnegotiation.ContentNegotiation) {
+                json()
+            }
+            install(Koin) {
+                modules(module {
+                    single { oidcService }
+                    single { config }
+                    single { httpClient }
+                })
+            }
+            install(Sessions) {
+                cookie<KbffSession>("KBFF_SESSION") {
+                    serializer = object : SessionSerializer<KbffSession> {
+                        override fun deserialize(text: String): KbffSession = session
+                        override fun serialize(session: KbffSession): String = "mock-session"
+                    }
+                }
+            }
+            routing {
+                kbffProxyRoutes(config, httpClient, oidcService)
+            }
+        }
+
+        val response = client.post("/api/player/do-something") {
+            header(HttpHeaders.Cookie, "KBFF_SESSION=mock-session")
+            header("X-CSRF", "correct-token")
+        }
+
+        expectThat(response.status).isEqualTo(HttpStatusCode.OK)
+    }
+
+    @Test
     fun `test proxy downstream failure returns bad gateway`() = testApplication {
         val oidcService = mockk<OidcService>()
         val config = KbffConfiguration().apply {
@@ -45,6 +209,7 @@ class KbffProxyRoutesTest {
         val session = KbffSession(
             sessionId = "sid",
             accessToken = "player-access-token",
+            csrfToken = "csrf-token",
             expiresAt = System.currentTimeMillis() + 100000
         )
 
@@ -106,6 +271,7 @@ class KbffProxyRoutesTest {
         val session = KbffSession(
             sessionId = "sid",
             accessToken = "player-access-token",
+            csrfToken = "csrf-token",
             expiresAt = System.currentTimeMillis() + 100000
         )
 
@@ -288,6 +454,7 @@ class KbffProxyRoutesTest {
         val session = KbffSession(
             sessionId = "sid",
             accessToken = "access-token",
+            csrfToken = "csrf-token",
             expiresAt = System.currentTimeMillis() + 100000
         )
 
@@ -341,6 +508,7 @@ class KbffProxyRoutesTest {
         val session = KbffSession(
             sessionId = "sid",
             accessToken = "access-token",
+            csrfToken = "csrf-token",
             expiresAt = System.currentTimeMillis() + 100000
         )
 
@@ -394,6 +562,7 @@ class KbffProxyRoutesTest {
         val session = KbffSession(
             sessionId = "sid",
             accessToken = "access-token",
+            csrfToken = "csrf-token",
             expiresAt = System.currentTimeMillis() + 100000
         )
 
@@ -465,6 +634,7 @@ class KbffProxyRoutesTest {
         val session = KbffSession(
             sessionId = "sid",
             accessToken = "access-token",
+            csrfToken = "csrf-token",
             expiresAt = System.currentTimeMillis() + 100000
         )
 
@@ -526,10 +696,14 @@ class KbffProxyRoutesTest {
         val session = KbffSession(
             sessionId = "sid",
             accessToken = "access-token",
+            csrfToken = "csrf-token",
             expiresAt = System.currentTimeMillis() + 100000
         )
 
         application {
+            install(io.ktor.server.plugins.contentnegotiation.ContentNegotiation) {
+                json()
+            }
             install(Koin) {
                 modules(module {
                     single { oidcService }

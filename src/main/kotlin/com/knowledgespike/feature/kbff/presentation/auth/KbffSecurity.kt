@@ -7,9 +7,7 @@ import io.ktor.server.application.*
 import io.ktor.server.plugins.hsts.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
-import io.ktor.server.sessions.get
-import io.ktor.server.sessions.sessions
-import org.koin.ktor.ext.inject
+import io.ktor.server.sessions.*
 import org.slf4j.LoggerFactory
 
 private val logger = LoggerFactory.getLogger("com.knowledgespike.feature.kbff.presentation.auth.KbffSecurity")
@@ -62,14 +60,14 @@ fun ApplicationCall.verifyCsrfToken(configuration: KbffConfiguration): Boolean {
 
     val csrfHeader = request.headers[security.csrfHeaderName]
     val session = sessions.get<KbffSession>()
-    logger.debug("Getting  session: {}", session)
+    val sessionCsrf = session?.csrfToken
 
-    // just need the header I don't care what the value is
-    if (csrfHeader.isNullOrBlank()) {
+    if (csrfHeader.isNullOrBlank() || sessionCsrf.isNullOrBlank() || csrfHeader != sessionCsrf) {
         logger.warn(
-            "CSRF verification failed: Missing header '{}', sessionCsrf: '{}'",
-            security.csrfHeaderName,
-            csrfHeader
+            "CSRF verification failed: header present: {}, session token present: {}, match: {}",
+            !csrfHeader.isNullOrBlank(),
+            !sessionCsrf.isNullOrBlank(),
+            csrfHeader != null && csrfHeader == sessionCsrf
         )
         return false
     }

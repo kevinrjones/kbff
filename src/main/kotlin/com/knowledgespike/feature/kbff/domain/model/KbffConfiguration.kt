@@ -18,7 +18,11 @@ data class OidcConfiguration(
     val sslCertificatePath: String? = null,
     val connectTimeoutMillis: Long = 5000L,
     val socketTimeoutMillis: Long = 5000L
-)
+) {
+    override fun toString(): String {
+        return "OidcConfiguration(authority='$authority', discoveryUrl='$discoveryUrl', clientId='$clientId', clientSecret='****', scopes=$scopes, redirectUri='$redirectUri', postLogoutRedirectUri='$postLogoutRedirectUri', sslTrustAll=$sslTrustAll, sslCertificatePath=$sslCertificatePath, connectTimeoutMillis=$connectTimeoutMillis, socketTimeoutMillis=$socketTimeoutMillis)"
+    }
+}
 
 @Serializable
 data class SecurityConfiguration(
@@ -100,6 +104,8 @@ class ProxyConfigurationBuilder {
 
 @Serializable
 class KbffConfiguration {
+    var isProduction: Boolean = true
+        private set
     var oidc = OidcConfiguration()
         private set
     var proxy = ProxyConfiguration()
@@ -124,5 +130,15 @@ class KbffConfiguration {
         val builder = ProxyConfigurationBuilder()
         builder.block()
         this.proxy = builder.build()
+    }
+
+    fun environment(isProduction: Boolean) {
+        this.isProduction = isProduction
+    }
+
+    fun validate() {
+        if (isProduction && oidc.sslTrustAll) {
+            throw IllegalStateException("Security breach: sslTrustAll=true is strictly prohibited in production mode.")
+        }
     }
 }

@@ -6,12 +6,11 @@ import com.knowledgespike.feature.kbff.domain.model.KbffErrorResponse
 import com.knowledgespike.feature.kbff.domain.model.KbffSession
 import com.knowledgespike.feature.kbff.domain.service.OidcService
 import com.knowledgespike.feature.kbff.presentation.auth.verifyCsrfToken
-import io.ktor.server.request.*
 import io.ktor.http.*
-import io.ktor.server.plugins.origin
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.sessions.*
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.slf4j.LoggerFactory
@@ -28,20 +27,13 @@ fun Route.kbffAuthRoutes(
 
     route(loginPath) {
         get {
-            logger.debug(
-                "Handling login request, returnUrl: {}, host: {}, port: {}, callbackPath: {}, scheme: {}",
-                call.parameters["returnUrl"],
-                call.request.host(),
-                call.request.port(),
-                callbackPath,
-                call.request.origin.scheme
-            )
+            val requestedReturnUrl = call.parameters["returnUrl"]
+            if (isUnsafeReturnUrl(requestedReturnUrl, callbackPath)) {
+                logger.warn("Rejected unsafe returnUrl during login")
+            }
             val returnUrl = normalizeReturnUrl(
-                returnUrl = call.parameters["returnUrl"],
-                host = call.request.host(),
-                port = call.request.port(),
-                callbackPath = callbackPath,
-                scheme = call.request.origin.scheme
+                returnUrl = requestedReturnUrl,
+                callbackPath = callbackPath
             )
             logger.debug("Handling login request, returnUrl: {}", returnUrl)
             val state = oidcService.generateState()
@@ -54,9 +46,9 @@ fun Route.kbffAuthRoutes(
                 state = state,
                 nonce = nonce,
                 codeVerifier = codeVerifier,
-                returnUrl = returnUrl
+                returnUrl = returnUrl,
+                csrfToken = oidcService.generateState()
             )
-            logger.debug("Setting initial session: {}", initialSession)
             call.sessions.set(initialSession)
 
             val authUrl =
@@ -115,17 +107,14 @@ fun Route.kbffAuthRoutes(
 
             val finalSession = if (updatedSession.accessToken != null) {
                 val userInfoClaims = oidcService.getUserInfoClaims(updatedSession.accessToken).getOrElse { emptyList() }
-                updatedSession.copy(userInfoClaims = userInfoClaims)
+                updatedSession.copy(userInfoClaims = userInfoClaims, csrfToken = oidcService.generateState())
             } else {
-                updatedSession
+                updatedSession.copy(csrfToken = oidcService.generateState())
             }
 
             val redirectUrl = normalizeReturnUrl(
                 returnUrl = session.returnUrl,
-                host = call.request.host(),
-                port = call.request.port(),
-                callbackPath = callbackPath,
-                scheme = call.request.origin.scheme
+                callbackPath = callbackPath
             )
             logger.info("Successfully authenticated user, redirecting to: {}", redirectUrl)
             call.sessions.set(finalSession)
@@ -166,14 +155,17 @@ fun Route.kbffAuthRoutes(
 
             val mergedClaims = (session.claims + session.userInfoClaims).distinctBy { it.type to it.value }
 
-            val claimsArray = kotlinx.serialization.json.buildJsonArray {
-                mergedClaims.forEach { claim ->
-                    add(buildJsonObject {
-                        put("type", claim.type)
-                        put("value", claim.value)
-                        put("valueType", claim.valueType)
-                    })
-                }
+            val claimsArray = buildJsonObject {
+                put("claims", buildJsonArray {
+                    mergedClaims.forEach { claim ->
+                        add(buildJsonObject {
+                            put("type", claim.type)
+                            put("value", claim.value)
+                            put("valueType", claim.valueType)
+                        })
+                    }
+                })
+                put("csrfToken", session.csrfToken)
             }
             call.respond(claimsArray)
         }

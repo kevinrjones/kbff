@@ -32,12 +32,21 @@ import org.slf4j.LoggerFactory
 import java.net.URI
 import java.security.SecureRandom
 import java.util.*
+import kotlin.time.Duration.Companion.milliseconds
 
 class OidcService(
     private val httpClient: HttpClient,
     private val configuration: KbffConfiguration
 ) {
     private val logger = LoggerFactory.getLogger(OidcService::class.java)
+
+    init {
+        configuration.validate()
+        if (configuration.oidc.sslTrustAll) {
+            logger.warn("sslTrustAll=true is enabled. This should only be used in development/test environments.")
+        }
+    }
+
     private val secureRandom = SecureRandom()
     private var metadataCache: OIDCProviderMetadata? = null
     private var metadataFetchedAt: Long = 0L
@@ -185,7 +194,8 @@ class OidcService(
         val idToken = json["id_token"]?.jsonPrimitive?.contentOrNull
         val refreshToken = json["refresh_token"]?.jsonPrimitive?.contentOrNull
 
-        logger.info(
+        logger.info("Successfully retrieved tokens from identity server during {}", flow)
+        logger.debug(
             "Tokens retrieved from identity server during {}. access_token={}, id_token={}, refresh_token={}",
             flow,
             maskToken(accessToken),
@@ -388,7 +398,7 @@ class OidcService(
             }
 
             if (attempt < 2) {
-                kotlinx.coroutines.delay(1000L * (attempt + 1))
+                kotlinx.coroutines.delay((1000L * (attempt + 1)).milliseconds)
             }
         }
 
