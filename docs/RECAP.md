@@ -51,3 +51,34 @@ Recap of the transition to the `com.vanniktech.maven.publish` plugin:
     - Updated `.github/workflows/build.yml` to use `publishAllPublicationsToMavenCentralRepository`.
     - Mapped GitHub secrets to the environment variables expected by the Vanniktech plugin (`ORG_GRADLE_PROJECT_mavenCentralUsername`, etc.).
     - Disabled configuration cache for the publishing task to ensure compatibility with release builds.
+
+## 2026-05-12
+### 08:13
+
+Recap of the work completed since the last update:
+
+- **Security & Authentication Enhancements**:
+    - Improved CSRF protection in the BFF login flow by implementing per-session tokens and header validation.
+    - Enhanced return URL validation to ensure only safe, relative URLs are accepted, preventing open redirect vulnerabilities.
+    - Refined logging across authentication services to improve clarity while ensuring sensitive data is sanitized.
+    - Strengthened OIDC service validation and normalization of return parameters.
+- **Publishing & CI/CD Refinement**:
+    - Finalized the migration to `com.vanniktech.maven.publish` by removing redundant build configurations.
+    - Updated CI secrets and host configurations for reliable Maven Central publishing.
+    - Configured the publishing workflow to restrict automatic releases to tagged builds only.
+- **Dependency & Build Maintenance**:
+    - Performed a major update of project dependencies, including Ktor, Kotlin, and serialization libraries.
+    - Integrated Gradle plugins for automated version catalog and dependency updates.
+    - Refactored application versioning logic in `build.gradle.kts` to automatically strip the 'v' prefix from git tags for Maven compatibility.
+
+Git commits included in this update:
+- `cd4e6d0` — refactor(build): Simplify `getAppVersion` logic and ensure version strings strip `v` prefix
+- `7e8750e` — chore(dependencies): Bump `vanniktech-maven-publish` to 0.36.0; update Apache license URL to HTTPS; adjust Maven publishing configuration
+- `a287de6` — chore(dependencies): Update library versions (Koin, Kotlin, Ktor, Nimbus, Serialization, etc.); add plugins for version and catalog updates; refine dependency management
+- `191af92` — Merge branch 'refactor/security-fixes'
+- `208529d` — refactor(auth): Simplify return URL normalization by removing unnecessary parameters; enhance OIDC service with stricter `sslTrustAll` validation and tests
+- `16fcd98` — refactor(logging): Improve log clarity in OIDC service, auth routes, and security flow; sanitize sensitive data in logs and refine CSRF mismatch warnings
+- `7cb8a17` — feat(auth): Enhance return URL validation and improve CSRF protection in BFF login flow
+- `e636fb3` — Restrict Sonatype publishing in CI workflow to tag builds only by updating conditional check
+- `2e76fe3` — Remove `java` block with sources and Javadoc JAR configuration
+- `d1b5b56` — Update secrets and Sonatype host for Maven Central publishing in CI workflow
