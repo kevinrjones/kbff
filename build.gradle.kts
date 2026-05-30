@@ -64,6 +64,12 @@ tasks.test {
     useJUnitPlatform()
 }
 
+tasks.register("publishLocal") {
+    group = "publishing"
+    description = "Publishes all Maven publications to the local Maven repository."
+    dependsOn("publishToMavenLocal")
+}
+
 kotlin {
     jvmToolchain(21)
     compilerOptions {
@@ -71,11 +77,16 @@ kotlin {
     }
 }
 
-
 mavenPublishing {
     publishToMavenCentral()
 //    publishToMavenCentral(automaticRelease = true)
-    signAllPublications()
+    if (
+        providers.gradleProperty("signingInMemoryKey").isPresent &&
+        providers.gradleProperty("signingInMemoryKeyPassword").isPresent
+    ) {
+        signAllPublications()
+    }
+
     pom {
         name.set("KBFF")
         description.set("Ktor Backend-for-Frontend Library")
