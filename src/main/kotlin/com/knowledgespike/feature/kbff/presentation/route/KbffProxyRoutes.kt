@@ -50,7 +50,7 @@ fun Route.kbffProxyRoutes(
                 }.distinct()
 
                 if (!UriUtils.isTrustedInternalTarget(targetUrl.toString(), trustedHosts)) {
-                    logger.error("Blocking potentially malicious proxy target: {}", targetUrl)
+                    logger.error("Blocking potentially malicious XXX proxy target: {}", targetUrl)
                     call.respond(HttpStatusCode.Forbidden, "Untrusted proxy target")
                     return@handle
                 }
