@@ -732,4 +732,64 @@ class KbffProxyRoutesTest {
 
         expectThat(response.status).isEqualTo(HttpStatusCode.OK)
     }
+
+    @Test
+    fun `test proxy encodes remaining path before forwarding downstream`() = testApplication {
+        val oidcService = mockk<OidcService>()
+        val config = KbffConfiguration().apply {
+            proxy {
+                endpoint("/api", "https://downstream.com/api")
+            }
+            security {
+                enableCsrf = false
+            }
+        }
+
+        val mockEngine = MockEngine { request ->
+            expectThat(request.url.toString())
+                .isEqualTo("https://downstream.com/api/reports/customer%20name/summary%231")
+
+            respond("ok")
+        }
+        val httpClient = HttpClient(mockEngine)
+
+        val session = KbffSession(
+            sessionId = "sid",
+            accessToken = "access-token",
+            csrfToken = "csrf-token",
+            expiresAt = System.currentTimeMillis() + 100000
+        )
+
+        application {
+            install(io.ktor.server.plugins.contentnegotiation.ContentNegotiation) {
+                json()
+            }
+            install(Koin) {
+                modules(module {
+                    single { oidcService }
+                    single { config }
+                    single { httpClient }
+                })
+            }
+            install(Sessions) {
+                cookie<KbffSession>("KBFF_SESSION") {
+                    serializer = object : SessionSerializer<KbffSession> {
+                        override fun deserialize(text: String): KbffSession = session
+                        override fun serialize(session: KbffSession): String = "mock-session"
+                    }
+                }
+            }
+            routing {
+                kbffProxyRoutes(config, httpClient, oidcService)
+            }
+        }
+
+        val response = client.get("/api/reports/customer name/summary%231") {
+            header(HttpHeaders.Cookie, "KBFF_SESSION=mock-session")
+        }
+
+        expectThat(response.status).isEqualTo(HttpStatusCode.OK)
+    }
+
+
 }

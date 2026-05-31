@@ -18,6 +18,7 @@ import io.ktor.util.*
 import io.ktor.utils.io.*
 import org.slf4j.LoggerFactory
 import java.io.IOException
+import java.net.URI
 
 private val logger = LoggerFactory.getLogger("com.knowledgespike.feature.kbff.presentation.route.KbffProxyRoutes")
 
@@ -30,6 +31,7 @@ fun Route.kbffProxyRoutes(
         val path = endpoint.path.removePrefix("/")
         route("/$path/{proxy...}") {
             handle {
+                logger.debug("Handling proxy request to {}", call.request.uri)
                 if (!call.verifyCsrfToken(configuration)) {
                     logger.warn("Proxy request to {} failed: Missing or invalid CSRF header", call.request.uri)
                     call.respondCsrfRejected()
@@ -43,8 +45,9 @@ fun Route.kbffProxyRoutes(
 
                 val trustedHosts = configuration.proxy.endpoints.mapNotNull {
                     try {
-                        java.net.URI(it.targetUrl).host
+                        URI(it.targetUrl).host
                     } catch (e: Exception) {
+                        logger.warn("Failed to parse target URL: {}", it.targetUrl, e)
                         null
                     }
                 }.distinct()
@@ -141,7 +144,8 @@ private suspend fun ensureValidSession(
  * @return A constructed Url object representing the combined target URL.
  */
 private fun buildTargetUrl(targetBaseUrl: String, call: ApplicationCall): Url {
-    val remainingPath = call.parameters.getAll("proxy")?.joinToString("/") ?: ""
+    val remainingPath = (call.parameters.getAll("proxy")?.joinToString("/") ?: "").encodeURLPath()
+
     return URLBuilder(targetBaseUrl).apply {
         if (remainingPath.isNotEmpty()) {
             val currentPath = encodedPath.removeSuffix("/")

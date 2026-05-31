@@ -1,5 +1,6 @@
 package com.knowledgespike.feature.kbff.domain.util
 
+import io.ktor.http.encodeURLPath
 import org.slf4j.LoggerFactory
 import java.net.URI
 
@@ -30,11 +31,13 @@ object UriUtils {
      */
     fun isTrustedInternalTarget(targetUrl: String, trustedHosts: List<String>): Boolean {
         return try {
-            val uri = URI(targetUrl)
-            logger.debug("Checking if $targetUrl is trusted: ${uri.host}")
+            val uri = URI(targetUrl.encodeURLPath())
             val host = uri.host ?: return false
-            trustedHosts.any { it.equals(host, ignoreCase = true) }
+            trustedHosts.any {
+                it.equals(host, ignoreCase = true)
+            }
         } catch (e: Exception) {
+            logger.warn("Failed to parse target URL: {}", targetUrl.encodeURLPath(), e)
             false
         }
     }
