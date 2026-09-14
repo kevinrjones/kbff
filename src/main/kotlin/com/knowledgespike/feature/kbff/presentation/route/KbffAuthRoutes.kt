@@ -1,6 +1,7 @@
 package com.knowledgespike.feature.kbff.presentation.route
 
 import arrow.core.getOrElse
+import com.knowledgespike.feature.kbff.domain.model.KbffClaim
 import com.knowledgespike.feature.kbff.domain.model.KbffConfiguration
 import com.knowledgespike.feature.kbff.domain.model.KbffErrorResponse
 import com.knowledgespike.feature.kbff.domain.model.KbffSession
@@ -123,6 +124,31 @@ fun Route.kbffAuthRoutes(
     }
 
     route(logoutPath) {
+        get {
+            logger.debug("Handling GET logout request")
+            val session = call.sessions.get<KbffSession>()
+            val sidParam = call.parameters["sid"]
+            // Validate CSRF via query parameter match
+            if (session != null && (sidParam.isNullOrBlank() || sidParam != session.csrfToken)) {
+                logger.warn("Logout failed: Missing or mismatched sid parameter")
+                call.respond(HttpStatusCode.Forbidden, KbffErrorResponse("forbidden", "Missing or mismatched logout sid"))
+                return@get
+            }
+            val logoutUrl = when (val logoutResult = oidcService.getLogoutUrl(session?.idToken)) {
+                is arrow.core.Either.Left -> {
+                    call.respondOidcError(logoutResult.value)
+                    return@get
+                }
+                is arrow.core.Either.Right -> logoutResult.value
+            }
+            logger.info("Logging out user via GET, session exists: {}", session != null)
+            call.sessions.clear<KbffSession>()
+            if (logoutUrl != null) {
+                call.respondRedirect(logoutUrl)
+            } else {
+                call.respondRedirect("/")
+            }
+        }
         post {
             logger.debug("Handling logout request")
             if (!call.verifyCsrfToken(configuration)) {
@@ -154,10 +180,10 @@ fun Route.kbffAuthRoutes(
             val session = call.requireAuthenticatedSession() ?: return@get
 
             val mergedClaims = (session.claims + session.userInfoClaims).distinctBy { it.type to it.value }
-
+            val logoutUrlClaim = KbffClaim("bff:logout_url", "$logoutPath?sid=${session.csrfToken}")
             val claimsArray = buildJsonObject {
                 put("claims", buildJsonArray {
-                    mergedClaims.forEach { claim ->
+                    (mergedClaims + logoutUrlClaim).forEach { claim ->
                         add(buildJsonObject {
                             put("type", claim.type)
                             put("value", claim.value)
