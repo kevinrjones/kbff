@@ -28,7 +28,7 @@ Add the dependency to your `build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation("com.knowledgespike:kbff:0.1.0")
+    implementation("com.knowledgespike:kbff:0.4.0")
 }
 ```
 
