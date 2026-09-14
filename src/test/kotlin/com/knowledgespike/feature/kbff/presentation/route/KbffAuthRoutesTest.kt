@@ -309,7 +309,7 @@ class KbffAuthRoutesTest {
         expectThat(response.status).isEqualTo(HttpStatusCode.OK)
         val body = response.body<kotlinx.serialization.json.JsonObject>()
         val claims = body["claims"] as JsonArray
-        expectThat(claims).hasSize(4) // name, email, role (user), role (admin)
+        expectThat(claims).hasSize(5) // name, email, role (user), role (admin)
 
         val nameClaims = claims.filter { it.jsonObject["type"]?.jsonPrimitive?.content == "name" }
         expectThat(nameClaims).hasSize(1)
